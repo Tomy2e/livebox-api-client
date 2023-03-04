@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"net/http"
 
 	"github.com/Tomy2e/livebox-api-client/api/request"
@@ -89,8 +88,7 @@ func (c *client) request(ctx context.Context, req *request.Request, out interfac
 			}
 
 			// Check if the server returned a permission denied error.
-			var respError *response.Error
-			if errors.As(err, &respError) && respError.ErrorCode == response.PermissionDeniedErrorCode {
+			if response.IsPermissionDeniedError(err) {
 				// Try to renew the session if the version of the session that
 				// was used is still the current one.
 				if _, err := c.session.Renew(ctx, c.password, renewIfVersionIsCurrent(v)); err != nil {

@@ -39,6 +39,13 @@ func (e *Error) Error() string {
 	)
 }
 
+// IsPermissionDeniedError returns true if the Livebox API returned a permission
+// denied error (the session is expired or not valid).
+func IsPermissionDeniedError(err error) bool {
+	var respError *Error
+	return errors.As(err, &respError) && respError.ErrorCode == PermissionDeniedErrorCode
+}
+
 // StatusError is returned when the status code of an HTTP response is not 200.
 type StatusError struct {
 	Got int

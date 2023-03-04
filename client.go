@@ -5,11 +5,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"io"
 	"net/http"
 
 	"github.com/Tomy2e/livebox-api-client/api/request"
 	"github.com/Tomy2e/livebox-api-client/api/response"
+	internalHTTP "github.com/Tomy2e/livebox-api-client/internal/http"
 )
 
 // Client is a Livebox API Client. Requests sent using a client will
@@ -28,17 +28,19 @@ func NewClient(password string) Client {
 // using the given password. The given HTTP client will be used to send
 // HTTP requests.
 func NewClientWithHTTPClient(password string, c *http.Client) Client {
+	httpClient := internalHTTP.NewClient(c)
+
 	return &client{
 		password: password,
-		client:   c,
-		session:  newSession(c),
+		client:   httpClient,
+		session:  newSession(httpClient),
 	}
 }
 
 // client implements the Client interface.
 type client struct {
 	// HTTP client that will be used to send HTTP requests.
-	client *http.Client
+	client *internalHTTP.Client
 	// Password of the "admin" user.
 	password string
 	// Session data.
@@ -79,30 +81,10 @@ func (c *client) request(ctx context.Context, req *request.Request, out interfac
 			return err
 		}
 
-		// Send HTTP request
-		resp, err := c.client.Do(r)
-		if err != nil {
-			return err
-		}
-		defer resp.Body.Close()
-
-		// Verify HTTP Status. The 200 status code is always expected,
-		// even when the session is expired.
-		if resp.StatusCode != http.StatusOK {
-			return ErrUnexpectedStatus
-		}
-
-		// Read all body.
-		b, err := io.ReadAll(resp.Body)
-		if err != nil {
-			return err
-		}
-
-		// Handle eventual errors contained in the body.
-		// Session renewal is handled here.
-		if err := handleRequestError(b); err != nil {
-			// If reauthentication was already attempted, return error now.
-			if authAttempted {
+		if _, err := c.client.SendRequest(ctx, r, out); err != nil {
+			// The 200 status code is always expected, even when the session is expired.
+			// Also return error now if reauthentication was already attempted.
+			if response.IsStatusError(err) || authAttempted {
 				return err
 			}
 
@@ -123,30 +105,7 @@ func (c *client) request(ctx context.Context, req *request.Request, out interfac
 			return err
 		}
 
-		// No error, we can unmarshal the response body into the "out" parameter.
-		if err := json.Unmarshal(b, out); err != nil {
-			return err
-		}
-
 		break
-	}
-
-	return nil
-}
-
-// handleRequestError handles a JSON-encoded error contained in the body
-// of an API response. If multiple errors are found, only the first error
-// is returned. If there is no error, this function returns nil.
-func handleRequestError(body []byte) error {
-	// Unmarshal as an Error response.
-	var respError response.Errors
-	if err := json.Unmarshal(body, &respError); err != nil {
-		return err
-	}
-
-	if len(respError.Errors) > 0 {
-		// Only handle first error.
-		return &respError.Errors[0]
 	}
 
 	return nil

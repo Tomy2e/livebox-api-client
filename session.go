@@ -13,6 +13,7 @@ import (
 
 	"github.com/Tomy2e/livebox-api-client/api/request"
 	"github.com/Tomy2e/livebox-api-client/api/response"
+	internalHTTP "github.com/Tomy2e/livebox-api-client/internal/http"
 )
 
 const (
@@ -45,9 +46,6 @@ var (
 	// is successful, but the server did not send a sessionID cookie.
 	// In practice, you should not expect to see this error.
 	ErrEmptySessidCookie = errors.New("did not receive sessid cookie")
-	// ErrUnexpectedStatus is returned when the server does not return the
-	// expected 200 status code.
-	ErrUnexpectedStatus = errors.New("the server did not return the 200 status code")
 )
 
 var (
@@ -60,7 +58,7 @@ var (
 // should be called to guarantee thread safety.
 type session struct {
 	// HTTP client used to send authentication requests.
-	client *http.Client
+	client *internalHTTP.Client
 	// ContextID used for creating authenticated requests.
 	contextID string
 	// Cookie that contains the sessid (with patched name), used for
@@ -93,7 +91,7 @@ func renewIfVersionIsCurrent(version uint64) renewCondition {
 }
 
 // newSession returns a new session with the provided HTTP client.
-func newSession(c *http.Client) *session {
+func newSession(c *internalHTTP.Client) *session {
 	return &session{
 		client: c,
 	}
@@ -124,35 +122,14 @@ func (s *session) Renew(ctx context.Context, password string, rc renewCondition)
 		return false, err
 	}
 
-	res, err := s.client.Do(req)
-	if err != nil {
-		return false, err
-	}
-	defer res.Body.Close()
+	login := response.Login{}
 
-	// Handle status errors, we expect status code 200 to continue.
-	if res.StatusCode != http.StatusOK {
-		// An invalid password causes a 401 status code.
-		if res.StatusCode == http.StatusUnauthorized {
+	res, err := s.client.SendRequest(ctx, req, &login)
+	if err != nil {
+		if response.IsStatusErrorUnauthorized(err) {
 			return false, ErrInvalidPassword
 		}
-		return false, ErrUnexpectedStatus
-	}
 
-	// Read all body.
-	b, err := io.ReadAll(res.Body)
-	if err != nil {
-		return false, err
-	}
-
-	// Handle an eventual error (an invalid password does not trigger an error).
-	if err := handleRequestError(b); err != nil {
-		return false, err
-	}
-
-	// Decode response and verify that it's valid.
-	login := response.Login{}
-	if err := json.Unmarshal(b, &login); err != nil {
 		return false, err
 	}
 

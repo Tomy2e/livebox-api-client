@@ -1,6 +1,10 @@
 package response
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+	"net/http"
+)
 
 // Errors is a response that may be returned by the API when it cannot
 // successfully respond to the user request.
@@ -33,4 +37,34 @@ func (e *Error) Error() string {
 		e.Description,
 		e.Info,
 	)
+}
+
+// StatusError is returned when the status code of an HTTP response is not 200.
+type StatusError struct {
+	Got int
+}
+
+// Error returns the status error as a string.
+func (s *StatusError) Error() string {
+	return fmt.Sprintf("status error: got %d, expected 200", s.Got)
+}
+
+// NewStatusError returns a new StatusError with the status code that was received.
+func NewStatusError(got int) *StatusError {
+	return &StatusError{
+		Got: got,
+	}
+}
+
+// IsStatusError returns true if the error is a StatusError.
+func IsStatusError(err error) bool {
+	var statusError *StatusError
+	return errors.As(err, &statusError)
+}
+
+// IsStatusErrorUnauthorized returns true if the error is a StatusError and
+// the received status code is 401.
+func IsStatusErrorUnauthorized(err error) bool {
+	var statusError *StatusError
+	return errors.As(err, &statusError) && statusError.Got == http.StatusUnauthorized
 }

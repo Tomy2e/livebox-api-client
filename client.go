@@ -81,9 +81,8 @@ func (c *client) request(ctx context.Context, req *request.Request, out interfac
 		}
 
 		if _, err := c.client.SendRequest(ctx, r, out); err != nil {
-			// The 200 status code is always expected, even when the session is expired.
-			// Also return error now if reauthentication was already attempted.
-			if response.IsStatusError(err) || authAttempted {
+			// If reauthentication was already attempted, return error now.
+			if authAttempted {
 				return err
 			}
 

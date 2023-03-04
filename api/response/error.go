@@ -63,12 +63,6 @@ func NewStatusError(got int) *StatusError {
 	}
 }
 
-// IsStatusError returns true if the error is a StatusError.
-func IsStatusError(err error) bool {
-	var statusError *StatusError
-	return errors.As(err, &statusError)
-}
-
 // IsStatusErrorUnauthorized returns true if the error is a StatusError and
 // the received status code is 401.
 func IsStatusErrorUnauthorized(err error) bool {

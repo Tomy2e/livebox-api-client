@@ -3,14 +3,8 @@ package response
 import (
 	"errors"
 	"fmt"
-	"net/http"
+	"strings"
 )
-
-// Errors is a response that may be returned by the API when it cannot
-// successfully respond to the user request.
-type Errors struct {
-	Errors []Error `json:"errors"`
-}
 
 // ErrorCode is the code of the error.
 type ErrorCode int
@@ -19,7 +13,28 @@ type ErrorCode int
 // is denied. This is mostly due to an invalid or expired session.
 const PermissionDeniedErrorCode ErrorCode = 13
 
-// Error contains a detailed error. It implements the error interface.
+// Errors is a response that may be returned by the API when it cannot
+// successfully respond to the user request.
+//
+//nolint:errname // Simplifies the name.
+type Errors struct {
+	Errors []*Error `json:"errors"`
+}
+
+func (e *Errors) Error() string {
+	str := strings.Builder{}
+	for i, err := range e.Errors {
+		if i != 0 {
+			str.WriteString("\n")
+		}
+
+		str.WriteString(err.Error())
+	}
+
+	return str.String()
+}
+
+// Error contains a detailed error.
 type Error struct {
 	// Error code.
 	ErrorCode ErrorCode `json:"error"`
@@ -42,30 +57,40 @@ func (e *Error) Error() string {
 // IsPermissionDeniedError returns true if the Livebox API returned a permission
 // denied error (the session is expired or not valid).
 func IsPermissionDeniedError(err error) bool {
-	var respError *Error
-	return errors.As(err, &respError) && respError.ErrorCode == PermissionDeniedErrorCode
+	return errorMatches(err, func(err *Error) bool { return err.ErrorCode == PermissionDeniedErrorCode })
 }
 
-// StatusError is returned when the status code of an HTTP response is not 200.
-type StatusError struct {
-	Got int
+// IsChannelDoesNotExistError returns true if the Livebox API returned a
+// "channel does not exist" error.
+func IsChannelDoesNotExistError(err error) bool {
+	return errorMatches(err, func(err *Error) bool { return err.Info == "channel does not exist" })
 }
 
-// Error returns the status error as a string.
-func (s *StatusError) Error() string {
-	return fmt.Sprintf("status error: got %d, expected 200", s.Got)
+// IsFunctionExecutionFailedError returns true if the Livebox API returned a
+// "Function execution failed" error.
+func IsFunctionExecutionFailedError(err error) bool {
+	return errorMatches(err, func(err *Error) bool { return err.Description == "Function execution failed" })
 }
 
-// NewStatusError returns a new StatusError with the status code that was received.
-func NewStatusError(got int) *StatusError {
-	return &StatusError{
-		Got: got,
+func errorMatches(err error, f func(*Error) bool) bool {
+	// Is is a multi-error?
+	var respErrors *Errors
+	if errors.As(err, &respErrors) {
+		for _, err := range respErrors.Errors {
+			if f(err) {
+				return true
+			}
+		}
+
+		return false
 	}
-}
 
-// IsStatusErrorUnauthorized returns true if the error is a StatusError and
-// the received status code is 401.
-func IsStatusErrorUnauthorized(err error) bool {
-	var statusError *StatusError
-	return errors.As(err, &statusError) && statusError.Got == http.StatusUnauthorized
+	// Is it a single error?
+	var respError *Error
+	if errors.As(err, &respError) {
+		return f(respError)
+	}
+
+	// It's something else.
+	return false
 }

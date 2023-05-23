@@ -1,14 +1,13 @@
 package request
 
-// NewLogin returns a new authentication request object. the username is
-// hard-coded to "admin".
-func NewLogin(password string) *Request {
+// NewLogin returns a new authentication request object.
+func NewLogin(username, password string) *Request {
 	return New(
 		"sah.Device.Information",
 		"createContext",
-		map[string]interface{}{
+		Parameters{
 			"applicationName": "webui",
-			"username":        "admin",
+			"username":        username,
 			"password":        password,
 		},
 	)

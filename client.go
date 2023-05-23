@@ -6,7 +6,7 @@ import (
 	internalHTTP "github.com/Tomy2e/livebox-api-client/internal/http"
 )
 
-const defaultLiveboxAddress = "http://192.168.1.1"
+const DefaultAddress = "http://192.168.1.1"
 
 // Client is a Livebox API Client. Requests sent using a client will
 // be automatically authenticated using the specified password.
@@ -51,7 +51,7 @@ type clientOpts struct {
 func newClientOpts(opts []Opt) *clientOpts {
 	co := &clientOpts{
 		httpClient: http.DefaultClient,
-		address:    defaultLiveboxAddress,
+		address:    DefaultAddress,
 	}
 
 	for _, f := range opts {

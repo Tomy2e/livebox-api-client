@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 
@@ -18,7 +19,7 @@ import (
 
 const (
 	// All API requests are sent to this endpoint using the POST method.
-	apiEndpoint = "http://192.168.1.1/ws"
+	apiEndpoint = "ws"
 	// HTTP request Content-Type. HTTP responses will also use this Content-Type.
 	apiContentType = "application/x-sah-ws-4-call+json"
 	// Value of the Authorization HTTP Header during the login request.
@@ -59,6 +60,8 @@ var (
 type session struct {
 	// HTTP client used to send authentication requests.
 	client *internalHTTP.Client
+	// Address where to send API requests.
+	address string
 	// ContextID used for creating authenticated requests.
 	contextID string
 	// Cookie that contains the sessid (with patched name), used for
@@ -90,11 +93,19 @@ func renewIfVersionIsCurrent(version uint64) renewCondition {
 	}
 }
 
-// newSession returns a new session with the provided HTTP client.
-func newSession(c *internalHTTP.Client) *session {
-	return &session{
-		client: c,
+// newSession returns a new session with the provided HTTP client and livebox address.
+func newSession(c *internalHTTP.Client, liveboxAddress string) (*session, error) {
+	u, err := url.Parse(liveboxAddress)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse livebox address: %w", err)
 	}
+
+	u.Path = apiEndpoint
+
+	return &session{
+		client:  c,
+		address: u.String(),
+	}, nil
 }
 
 // Renew tries to renew the current session by authenticating to the Livebox API.
@@ -117,7 +128,7 @@ func (s *session) Renew(ctx context.Context, password string, rc renewCondition)
 	}
 
 	// Create request and send it
-	req, err := newRequest(ctx, bytes.NewReader(payload), authorizationHeaderLogin)
+	req, err := newRequest(ctx, s.address, bytes.NewReader(payload), authorizationHeaderLogin)
 	if err != nil {
 		return false, err
 	}
@@ -173,7 +184,7 @@ func (s *session) NewAuthenticatedRequest(ctx context.Context, body io.Reader) (
 		return nil, 0, errSessionNotInitialized
 	}
 
-	req, err := newRequest(ctx, body, s.authorization())
+	req, err := newRequest(ctx, s.address, body, s.authorization())
 	if err != nil {
 		return nil, 0, err
 	}
@@ -188,8 +199,8 @@ func (s *session) NewAuthenticatedRequest(ctx context.Context, body io.Reader) (
 // newRequest creates a new HTTP Post request with the Content-Type that
 // Livebox's API expects. An Authorization Header must be set, the
 // authorization parameter cannot be empty.
-func newRequest(ctx context.Context, body io.Reader, authorization string) (*http.Request, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, apiEndpoint, body)
+func newRequest(ctx context.Context, url string, body io.Reader, authorization string) (*http.Request, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, body)
 	if err != nil {
 		return nil, err
 	}

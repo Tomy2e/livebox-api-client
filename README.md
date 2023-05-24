@@ -25,10 +25,10 @@ Create a new client:
 
 ```golang
 // Client with default HTTP client
-client := livebox.NewClient("<admin-password>")
+client, _ := livebox.NewClient("<admin-password>")
 
 // Client with custom HTTP client
-client := livebox.NewClientWithHTTPClient("<admin-password>", &http.Client{})
+client, _ := livebox.NewClient("<admin-password>", livebox.WithHTTPClient(&http.Client{}))
 ```
 
 Send requests using the client:

@@ -44,3 +44,30 @@ _ = client.Request(
 
 fmt.Println(string(r))
 ```
+
+## Livebox CLI Usage
+
+The `livebox-cli` tool allows to easily send requests to the Livebox API. It writes the JSON responses to stdout.
+
+Pre-built binaries are available in the [Releases](https://github.com/Tomy2e/livebox-api-client/releases) section.
+If you have Go installed, you can run it with:
+
+```console
+go run github.com/Tomy2e/livebox-api-client/cmd/livebox-cli
+```
+
+### Options
+
+The tool accepts the following command-line options:
+
+| Name     | Description                  | Default value |
+| -------- | ---------------------------- | ------------- |
+| -service | Livebox service              |               |
+| -method  | Method to use                |               |
+| -params  | Optional JSON-encoded params |               |
+
+The tool reads the following environment variables:
+
+| Name           | Description                           | Default value |
+| -------------- | ------------------------------------- | ------------- |
+| ADMIN_PASSWORD | Password of the Livebox "admin" user. |               |

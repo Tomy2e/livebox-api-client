@@ -53,7 +53,7 @@ Pre-built binaries are available in the [Releases](https://github.com/Tomy2e/liv
 If you have Go installed, you can run it with:
 
 ```console
-go run github.com/Tomy2e/livebox-api-client/cmd/livebox-cli
+go run github.com/Tomy2e/livebox-api-client/cmd/livebox-cli@main
 ```
 
 ### Options

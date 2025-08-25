@@ -85,6 +85,10 @@ func New(client *http.Client, address, username, password string) (*Client, erro
 		return nil, fmt.Errorf("failed to parse livebox address: %w", err)
 	}
 
+	if u.Scheme == "" {
+		return nil, errors.New("scheme is missing in livebox address")
+	}
+
 	u.Path = apiEndpoint
 
 	return &Client{
